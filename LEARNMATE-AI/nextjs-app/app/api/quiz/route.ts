@@ -27,36 +27,39 @@ Make questions challenging but fair, with plausible distractors for incorrect op
 
 Text: ${text}`
 
+    // Call Ollama API
     const response = await fetch('http://localhost:11434/api/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama3.2:1b',
+        model: 'llama3:latest', // ensure this model is installed, else change to 'llama3'
         prompt: prompt,
         stream: false,
       }),
     })
 
     if (!response.ok) {
-      throw new Error('Failed to get response from Ollama')
+      const errText = await response.text()
+      console.error('Ollama error:', response.status, errText)
+      throw new Error(`Ollama error ${response.status}: ${errText}`)
     }
 
     const data = await response.json()
-    
+
     try {
-      // Try to parse JSON from the response
+      // Try to extract JSON from the response text
       const quizMatch = data.response.match(/\{[\s\S]*\}/)
       if (quizMatch) {
         const quizData = JSON.parse(quizMatch[0])
         return NextResponse.json(quizData)
       }
     } catch (parseError) {
-      console.log('Could not parse JSON, returning formatted response')
+      console.error('JSON parse error:', parseError)
     }
 
-    // Fallback: create a simple quiz structure
+    // Fallback quiz if model didn’t return valid JSON
     return NextResponse.json({
       quiz: [
         {
@@ -70,8 +73,8 @@ Text: ${text}`
   } catch (error) {
     console.error('Quiz API error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate quiz' },
+      { error: 'Failed to generate quiz. Please check Ollama server and model availability.' },
       { status: 500 }
     )
   }
-} 
+}
